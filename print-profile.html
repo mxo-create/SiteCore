@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SiteCore Trust Profile — Print</title>
+  <link rel="stylesheet" href="css/print.css">
+</head>
+<body>
+  <div class="print-toolbar no-print">
+    <strong>Trust Profile Preview</strong>
+    <button onclick="window.print()" style="padding:0.4rem 1rem;cursor:pointer;background:#c9a227;color:#fff;border:none;border-radius:4px;font-weight:600">Print / Save as PDF</button>
+    <button onclick="window.close()" style="padding:0.4rem 1rem;cursor:pointer;background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:4px">Close</button>
+  </div>
+  <div class="print-page" id="content"></div>
+
+  <script src="js/data.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const siteId = params.get('site') || 'SC-TZ-001';
+    const data = loadData();
+    const site = data.sites.find(s => s.id === siteId);
+
+    if (!site) {
+      document.getElementById('content').innerHTML = '<p>Site not found.</p>';
+    } else {
+      const latest = (site.assessments || []).slice(-1)[0];
+      const reports = (data.communityReports || []).filter(r => r.siteId === siteId);
+      const today = new Date().toISOString().slice(0, 10);
+      const tier = determineTrustTier(site);
+
+      const observed = latest
+        ? latest.observed.map(id => PRACTICES.find(p => p.id === id)?.label).filter(Boolean)
+        : [];
+
+      const history = [];
+      history.push({ date: site.registeredAt, title: 'Site Registered', desc: site.registeredBy });
+      if (site.selfAssessment) {
+        history.push({ date: site.selfAssessment.date, title: 'Self-Assessment', desc: 'Site representative checklist submitted' });
+      }
+      (site.assessments || []).forEach(a => {
+        history.push({
+          date: a.date,
+          title: 'Field Assessment',
+          desc: `${a.officer} — ${a.observed.length}/${PRACTICES.length} practices observed. ${a.notes || ''}`
+        });
+      });
+      reports.forEach(r => history.push({ date: r.reportedAt, title: `Community ${r.typeLabel}`, desc: r.description }));
+      if (site.introductionRequested) {
+        history.push({ date: site.introDate || today, title: 'Connected to Formal Market', desc: 'Buyer introduction requested' });
+      }
+      history.sort((a, b) => b.date.localeCompare(a.date));
+
+      document.getElementById('content').innerHTML = `
+        <div class="print-header">
+          <div>
+            <div class="print-logo">Site<span>Core</span></div>
+            <div style="font-size:0.8rem;color:#666;margin-top:0.25rem">Responsible Site Trust Profile</div>
+          </div>
+          <div class="print-meta">
+            Generated ${today}<br>
+            Document ID: ${site.id}-TP<br>
+            ${site.country} ASGM Pilot
+          </div>
+        </div>
+
+        <h1>${site.name}</h1>
+        <div style="font-family:monospace;color:#666;margin-bottom:0.5rem">${site.id}</div>
+        <div style="color:#444;margin-bottom:0.5rem">${site.location}</div>
+        <div><strong>Trust Tier:</strong> ${getTrustTierLabel(tier)}</div>
+        <div><strong>Location Trust:</strong> ${getLocationTrustLabel(site.locationTrust)}</div>
+
+        <div class="print-disclaimer">
+          This document reflects a living trust profile — not a certificate or licence.
+          SiteCore makes introductions only; it does not certify, regulate, or transact.
+        </div>
+
+        <div class="print-section">
+          <h2>Site Information</h2>
+          <table class="info-table">
+            <tr><td>Cooperative</td><td>${site.cooperative}</td></tr>
+            <tr><td>Primary Contact</td><td>${site.contact}${site.phone ? ' · ' + site.phone : ''}</td></tr>
+            <tr><td>Commodity</td><td>${site.commodity}</td></tr>
+            <tr><td>Production Estimate</td><td>${site.productionEstimate}</td></tr>
+            <tr><td>Registered</td><td>${site.registeredAt} by ${site.registeredBy}</td></tr>
+            <tr><td>Field Assessments</td><td>${(site.assessments || []).length}</td></tr>
+          </table>
+        </div>
+
+        ${observed.length ? `
+        <div class="print-section">
+          <h2>Observed Practices (Latest Assessment)</h2>
+          <ul>${observed.map(o => `<li>${o}</li>`).join('')}</ul>
+        </div>` : ''}
+
+        ${site.openImprovements?.length ? `
+          <div class="print-section">
+            <h2>Open Improvement Areas</h2>
+            <ul>${site.openImprovements.map(i => `<li>${i}</li>`).join('')}</ul>
+          </div>
+        ` : ''}
+
+        <div class="print-section">
+          <h2>Trust History</h2>
+          ${history.map(h => `
+            <div class="history-item">
+              <div class="date">${h.date}</div>
+              <strong>${h.title}</strong>
+              <div>${h.desc}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="print-footer">
+          SiteCore · World Gold Council × African Leadership Academy · Responsible Gold, Inclusive Futures Challenge<br>
+          Independent trust coordination for artisanal and small-scale gold mining
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
