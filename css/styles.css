@@ -513,9 +513,36 @@ tr:hover td { background: var(--gold-muted); }
   margin-bottom: 0.5rem;
   cursor: pointer;
   transition: border-color 0.15s;
+  gap: 0.75rem;
 }
 .site-row:hover { border-color: var(--gold); }
 .site-row-meta { display: block; font-size: 0.8rem; color: var(--slate-muted); }
+.site-row-side {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.admin-site-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+.btn-xs {
+  padding: 0.3rem 0.55rem;
+  font-size: 0.7rem;
+  min-height: 32px;
+}
+.btn-danger {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: #451919;
+}
+.btn-danger:hover {
+  background: rgba(125, 0, 0, 0.08);
+  border-color: rgba(125, 0, 0, 0.35);
+}
 
 .status-pill {
   border: none;
@@ -999,6 +1026,15 @@ tr:hover td { background: var(--gold-muted); }
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
+  }
+
+  .site-row-side {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .admin-site-actions {
+    justify-content: flex-start;
   }
 
   .site-row > *:last-child {

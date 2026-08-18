@@ -184,7 +184,6 @@ function renderHeader() {
         <div class="role-pills">${rolePills}</div>
         <div class="top-controls">
           <button class="btn btn-sm ${state.view === 'map' ? 'btn-gold' : 'btn-outline'}" id="btn-sitemap" style="color:#fff;border-color:rgba(255,255,255,0.3)">Site Map</button>
-          <button class="btn btn-sm btn-gold" id="btn-refresh">Refresh Data</button>
           <button class="btn btn-sm ${state.offline ? 'btn-gold' : 'btn-outline'}" id="btn-offline" style="color:#fff;border-color:rgba(255,255,255,0.3)">
             ${state.offline ? '📴 Offline' : '🌐 Online'}
           </button>
@@ -198,7 +197,6 @@ function renderHeader() {
     btn.addEventListener('click', () => setRole(btn.dataset.role));
   });
   document.getElementById('btn-sitemap')?.addEventListener('click', openMap);
-  document.getElementById('btn-refresh')?.addEventListener('click', refreshData);
   document.getElementById('btn-admin-login')?.addEventListener('click', () => {
     if (state.adminAuthenticated) {
       logoutAdmin();
@@ -307,8 +305,20 @@ function renderAdminOverview() {
   const reports = (state.data.communityReports || []).length;
   const support = (state.data.supportRequests || []).length;
   const verified = sites.filter(s => determineTrustTier(s) === 'field_verified' || determineTrustTier(s) === 'field_verified_open').length;
+  const active = sites.filter(s => s.banned !== true && s.isActive !== false).length;
+  const deactivated = sites.filter(s => s.isActive === false && s.banned !== true).length;
+  const banned = sites.filter(s => s.banned === true).length;
 
   return `
+    <div class="card">
+      <h2>Admin Portal</h2>
+      <p style="font-size:0.85rem;color:var(--slate-muted);margin-bottom:1rem">Inspect, monitor, suspend, or remove site records from a single place.</p>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="value">${active}</div><div class="label">Active Sites</div></div>
+        <div class="stat-card"><div class="value">${deactivated}</div><div class="label">Deactivated</div></div>
+        <div class="stat-card"><div class="value">${banned}</div><div class="label">Banned</div></div>
+      </div>
+    </div>
     <div class="stats-grid">
       <div class="stat-card"><div class="value">${sites.length}</div><div class="label">Registered Sites</div></div>
       <div class="stat-card"><div class="value">${assessments}</div><div class="label">Field Assessments</div></div>
@@ -322,7 +332,7 @@ function renderAdminOverview() {
     </div>
     <div class="card">
       <h2>All Sites</h2>
-      ${renderSiteList(sites)}
+      ${renderSiteList(sites, true)}
     </div>
     <div class="card">
       <h2>Community Reports</h2>
@@ -335,17 +345,44 @@ function renderAdminOverview() {
   `;
 }
 
-function renderSiteList(sites) {
+function getSiteGovernanceLabel(site) {
+  if (site.banned === true) return 'Banned';
+  if (site.isActive === false) return 'Deactivated';
+  return 'Active';
+}
+
+function getSiteGovernanceClass(site) {
+  if (site.banned === true) return 'trust-badge trust-field-open';
+  if (site.isActive === false) return 'trust-badge trust-registered';
+  return 'trust-badge trust-field-verified';
+}
+
+function renderSiteList(sites, includeAdminActions = false) {
   if (!sites.length) return '<p class="empty-state">No sites registered yet.</p>';
-  return sites.map(s => `
-    <div class="site-row" data-view-site="${s.id}">
-      <div>
-        <strong>${s.name}</strong>${syncIcon(s.queued)}
-        <span class="site-row-meta">${s.region}, ${s.country}</span>
+  return sites.map(s => {
+    const adminActions = includeAdminActions ? `
+      <div class="admin-site-actions" data-stop-propagation="true">
+        <button class="btn btn-outline btn-xs" data-admin-action="inspect" data-site-id="${s.id}">Inspect</button>
+        <button class="btn btn-outline btn-xs" data-admin-action="deactivate" data-site-id="${s.id}">${s.isActive === false ? 'Reactivate' : 'Deactivate'}</button>
+        <button class="btn btn-outline btn-xs" data-admin-action="ban" data-site-id="${s.id}">${s.banned === true ? 'Unban' : 'Ban'}</button>
+        <button class="btn btn-outline btn-xs btn-danger" data-admin-action="delete" data-site-id="${s.id}">Delete</button>
       </div>
-      <span class="trust-badge ${getTrustBadgeClass(determineTrustTier(s))}">${getTrustTierLabel(determineTrustTier(s))}</span>
-    </div>
-  `).join('');
+    ` : '';
+
+    return `
+      <div class="site-row" data-view-site="${s.id}">
+        <div>
+          <strong>${s.name}</strong>${syncIcon(s.queued)}
+          <span class="site-row-meta">${s.region}, ${s.country}</span>
+        </div>
+        <div class="site-row-side">
+          <span class="${getSiteGovernanceClass(s)}">${getSiteGovernanceLabel(s)}</span>
+          <span class="trust-badge ${getTrustBadgeClass(determineTrustTier(s))}">${getTrustTierLabel(determineTrustTier(s))}</span>
+          ${adminActions}
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 function renderAdminReportsTable() {
@@ -845,6 +882,12 @@ function bindDashboardEvents() {
   document.querySelectorAll('[data-view-site]').forEach(el => {
     el.addEventListener('click', () => showSiteProfile(el.dataset.viewSite));
   });
+  document.querySelectorAll('[data-admin-action]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      handleSiteAdminAction(el.dataset.adminAction, el.dataset.siteId);
+    });
+  });
   document.querySelectorAll('[data-pick-site]').forEach(el => {
     el.addEventListener('click', () => {
       state.selectedSiteId = el.dataset.pickSite;
@@ -887,6 +930,46 @@ function bindDashboardEvents() {
       refreshData();
     }
   });
+}
+
+function handleSiteAdminAction(action, siteId) {
+  const site = state.data.sites.find(s => s.id === siteId);
+  if (!site) return;
+
+  if (action === 'inspect') {
+    showSiteProfile(siteId);
+    return;
+  }
+
+  if (action === 'deactivate') {
+    site.isActive = site.isActive === false ? true : false;
+    site.banned = false;
+    showToast(site.isActive === false ? `${site.name} deactivated` : `${site.name} reactivated`, 'info');
+    persist();
+    render();
+    return;
+  }
+
+  if (action === 'ban') {
+    const alreadyBanned = site.banned === true;
+    site.banned = !alreadyBanned;
+    site.isActive = alreadyBanned;
+    showToast(alreadyBanned ? `${site.name} unbanned` : `${site.name} banned`, 'warning');
+    persist();
+    render();
+    return;
+  }
+
+  if (action === 'delete') {
+    if (!confirm(`Delete site record for ${site.name}? This cannot be undone.`)) return;
+
+    state.data.sites = state.data.sites.filter(s => s.id !== siteId);
+    state.data.communityReports = (state.data.communityReports || []).filter(r => r.siteId !== siteId);
+    state.data.supportRequests = (state.data.supportRequests || []).filter(r => r.siteId !== siteId);
+    persist();
+    showToast(`${site.name} deleted`, 'error');
+    render();
+  }
 }
 
 function bindMapEvents() {
