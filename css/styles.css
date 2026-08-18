@@ -521,11 +521,6 @@ tr:hover td { background: var(--gold-muted); }
 .status-under_review { background: var(--white); color: var(--black); border: 1px solid var(--gold-light); }
 .status-verified { background: var(--gold-muted); color: var(--gold-dark); border: 1px solid var(--gold); }
 .status-resolved { background: var(--black); color: var(--gold); }
-.status-open { background: #f0f9ff; color: #0369a1; border: 1px solid #0ea5e9; }
-.status-matched { background: #f0fdf4; color: #166534; border: 1px solid #22c55e; }
-.status-in_progress { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
-.status-completed { background: #dcfce7; color: #166534; border: 1px solid #22c55e; }
-.status-closed { background: #fee2e2; color: #7f1d1d; border: 1px solid #fca5a5; }
 
 .queued-icon { font-size: 0.85rem; opacity: 0.7; }
 

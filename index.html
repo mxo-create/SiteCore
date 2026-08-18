@@ -12,21 +12,7 @@
   <header class="app-header" id="header"></header>
   <main id="main"></main>
 
-  <script>
-    // Capture runtime errors and unhandled rejections for debugging
-    window._capturedErrors = window._capturedErrors || [];
-    window.addEventListener('error', e => {
-      try { window._capturedErrors.push({ type: 'error', message: e.message, filename: e.filename, lineno: e.lineno, colno: e.colno, stack: e.error && e.error.stack ? e.error.stack : null }); } catch (ex) {}
-    });
-    window.addEventListener('unhandledrejection', e => {
-      try { window._capturedErrors.push({ type: 'unhandledrejection', message: e.reason && e.reason.message ? e.reason.message : String(e.reason) }); } catch (ex) {}
-    });
-  </script>
-
   <script src="js/data.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
-  <script src="js/supabase-config.example.js"></script>
-  <script src="js/supabase.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
